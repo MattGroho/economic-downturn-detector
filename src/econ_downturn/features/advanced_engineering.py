@@ -31,8 +31,8 @@ def engineer_features_with_custom_lags(data, sentiment_lags=[1, 3, 6, 12, 18, 24
     # Make a copy of the data
     df = data.copy()
     
-    # Handle missing values
-    df = df.fillna(method='ffill').fillna(method='bfill')
+    # Handle missing values intelligently
+    df = _handle_missing_values_intelligently(df)
     
     # Resample to monthly frequency if needed
     if df.index.freq != 'M':
@@ -78,9 +78,48 @@ def engineer_features_with_custom_lags(data, sentiment_lags=[1, 3, 6, 12, 18, 24
     # Replace any remaining infinite values with NaN
     df = df.replace([np.inf, -np.inf], np.nan)
 
-    # Drop rows with missing values
-    df = df.dropna()
-    print(f"Dropped rows with missing values, new shape: {df.shape}")
+    # More intelligent handling of missing values after lag creation
+    print(f"Data shape before handling missing values: {df.shape}")
+
+    # Check which rows have missing values and why
+    missing_mask = df.isnull().any(axis=1)
+    print(f"Rows with missing values: {missing_mask.sum()}")
+
+    # Special handling for recession periods - try to preserve them
+    if 'recession' in df.columns:
+        recession_rows = df[df['recession'] == 1]
+        if len(recession_rows) > 0:
+            recession_missing = recession_rows.isnull().any(axis=1)
+            if recession_missing.any():
+                print(f"WARNING: {recession_missing.sum()} recession period rows have missing values")
+                print("Recession periods with missing data:")
+                print(recession_rows[recession_missing].index.tolist())
+
+    # Instead of dropping all rows with any missing values, be more selective
+    # Only drop rows where lag variables are missing (expected at the beginning)
+    # but preserve rows where only a few features are missing
+
+    # Calculate missing percentage per row
+    missing_percentage = df.isnull().sum(axis=1) / len(df.columns)
+
+    # Drop rows with more than 50% missing values (these are likely from lag creation)
+    rows_to_drop = missing_percentage > 0.5
+
+    if rows_to_drop.any():
+        print(f"Dropping {rows_to_drop.sum()} rows with >50% missing values")
+        df = df[~rows_to_drop]
+
+    # For remaining rows with some missing values, use forward fill
+    remaining_missing = df.isnull().sum().sum()
+    if remaining_missing > 0:
+        print(f"Forward-filling {remaining_missing} remaining missing values")
+        df = df.fillna(method='ffill').fillna(method='bfill')
+
+        # If still missing, use interpolation
+        if df.isnull().sum().sum() > 0:
+            df = df.interpolate(method='linear')
+
+    print(f"Data shape after intelligent missing value handling: {df.shape}")
 
     return df
 
@@ -297,3 +336,67 @@ def select_features(X, y, method='anova', k=20):
     X_selected_df = X[selected_features]
     
     return X_selected_df, selected_features
+
+
+def _handle_missing_values_intelligently(df):
+    """
+    Handle missing values intelligently based on the nature of each economic indicator.
+
+    This function specifically addresses the 2020 recession data issue by:
+    1. Forward-filling GDP (quarterly data)
+    2. Intelligently handling other economic indicators
+    3. Preserving critical recession periods
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input dataset with economic indicators
+
+    Returns
+    -------
+    pandas.DataFrame
+        Dataset with intelligently handled missing values
+    """
+    print("Applying intelligent missing value handling...")
+
+    # Make a copy to avoid modifying the original
+    df = df.copy()
+
+    # GDP is reported quarterly, so forward-fill to carry values between quarters
+    if 'GDP' in df.columns:
+        print("Forward-filling GDP values (quarterly data)")
+        df['GDP'] = df['GDP'].fillna(method='ffill')
+
+    # Handle other economic indicators with different strategies based on their nature
+    economic_indicators = [col for col in df.columns if col not in ['recession', 'GDP']]
+
+    for col in economic_indicators:
+        if col in df.columns:
+            # Check how many missing values we have
+            missing_count = df[col].isnull().sum()
+            if missing_count > 0:
+                print(f"Handling {missing_count} missing values in {col}")
+
+                # For most economic indicators, forward-fill then backward-fill
+                df[col] = df[col].fillna(method='ffill').fillna(method='bfill')
+
+                # If still missing (edge cases), use interpolation
+                if df[col].isnull().sum() > 0:
+                    df[col] = df[col].interpolate(method='linear')
+
+                # If still missing (very edge cases), use median
+                if df[col].isnull().sum() > 0:
+                    median_val = df[col].median()
+                    df[col] = df[col].fillna(median_val)
+
+    # Special handling for recession indicator - preserve it as is
+    # (it should not be forward/backward filled as it represents specific periods)
+
+    # Check for any remaining missing values
+    missing_after = df.isnull().sum()
+    if missing_after.sum() > 0:
+        print(f"Remaining missing values after intelligent handling: {missing_after[missing_after > 0].to_dict()}")
+    else:
+        print("All missing values successfully handled")
+
+    return df
