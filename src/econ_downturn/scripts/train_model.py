@@ -10,24 +10,19 @@ in the real-time monitoring system.
 import os
 import sys
 import pandas as pd
-import numpy as np
 import joblib
 import logging
 import argparse
-from pathlib import Path
 
 # Add the parent directory to the path to import the econ_downturn package
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import the econ_downturn package
 from econ_downturn import (
-    get_all_data, load_umich_data, load_fred_data, load_nber_data,
-    engineer_features, normalize_data, apply_pca,
+    get_all_data, engineer_features, normalize_data,
     apply_mda, create_discriminant_time_series,
-    plot_indicator_with_recessions, plot_correlation_matrix,
-    plot_recession_correlations, plot_feature_importance,
-    plot_mda_projection, plot_discriminant_time_series,
-    setup_logger, load_environment, get_output_paths
+    plot_feature_importance, plot_discriminant_time_series,
+    setup_logger, load_environment
 )
 
 # Set up logging

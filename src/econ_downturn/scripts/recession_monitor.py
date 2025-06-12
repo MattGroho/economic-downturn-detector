@@ -18,12 +18,9 @@ import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
-import logging
 import joblib
 import datetime
 import argparse
-from pathlib import Path
 import warnings
 import matplotlib.dates as mdates
 from matplotlib.gridspec import GridSpec
@@ -33,14 +30,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import the econ_downturn package
 from econ_downturn import (
-    get_all_data, load_umich_data, load_fred_data, load_nber_data,
-    engineer_features, normalize_data, apply_pca,
-    apply_mda, create_discriminant_time_series,
-    plot_indicator_with_recessions, plot_correlation_matrix,
-    plot_recession_correlations, plot_feature_importance,
-    plot_mda_projection, plot_discriminant_time_series,
-    plot_sentiment_vs_indicator, plot_sentiment_correlation_matrix,
-    setup_logger, load_environment, get_output_paths
+    get_all_data, engineer_features, create_discriminant_time_series,
+    setup_logger, load_environment
 )
 
 # Set up logging
@@ -70,20 +61,15 @@ def parse_arguments():
 def load_latest_data():
     """Load the latest economic data."""
     logger.info("Loading latest economic data...")
-    
-    # Load data from different sources
-    fred_data = load_fred_data()
-    nber_data = load_nber_data()
-    umich_data = load_umich_data()
-    
-    # Merge datasets
+
+    # Load merged data from all sources
     merged_data = get_all_data()
-    
+
     logger.info(f"Loaded data with shape: {merged_data.shape}")
-    
+
     return merged_data
 
-def prepare_data_for_prediction(data, model_path, scaler_path):
+def prepare_data_for_prediction(data, scaler_path):
     """Prepare data for prediction using the trained model."""
     logger.info("Preparing data for prediction...")
     
@@ -267,7 +253,7 @@ def main():
     data = load_latest_data()
     
     # Prepare data for prediction
-    prepared_data = prepare_data_for_prediction(data, model_path, scaler_path)
+    prepared_data = prepare_data_for_prediction(data, scaler_path)
     
     # Calculate recession probability
     discriminant_df = calculate_recession_probability(prepared_data, model_path)

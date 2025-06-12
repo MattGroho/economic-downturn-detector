@@ -17,9 +17,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import logging
-import requests
-import json
 from datetime import datetime
 from fredapi import Fred
 from dotenv import load_dotenv
@@ -29,14 +26,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import the econ_downturn package
 from econ_downturn import (
-    get_all_data, load_umich_data, load_fred_data, load_nber_data,
-    engineer_features, normalize_data, apply_pca,
-    apply_mda, create_discriminant_time_series,
-    plot_indicator_with_recessions, plot_correlation_matrix,
-    plot_recession_correlations, plot_feature_importance,
-    plot_mda_projection, plot_discriminant_time_series,
-    plot_sentiment_vs_indicator, plot_sentiment_correlation_matrix,
-    setup_logger, load_environment, get_output_paths
+    get_all_data, setup_logger, load_environment
 )
 
 # Set up logging
